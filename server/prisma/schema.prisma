@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int         @id @default(autoincrement())
+  username      String      @unique
+  email         String      @unique
+  password      String
+  role          Role        @default(CUSTOMER) // ADMIN = platform owner (controls pricing); CUSTOMER = tenant
+  status        UserStatus  @default(ACTIVE)   // SUSPENDED accounts cannot send
+  monthlyFee     Decimal    @default(0) @db.Decimal(12, 2) // fixed per-cycle platform/plan fee (INR)
+  creditLimit    Decimal?   @db.Decimal(12, 2) // max unbilled + unpaid before sending blocks; null = unlimited
+  billingStartsAt DateTime? // first month this client is billed for; null = bill from their joining month
+  createdAt     DateTime    @default(now())
+  contacts      Contact[]
+  messages      Message[]
+  templates     Template[]
+  broadcasts    Broadcast[]
+  setting       Setting?
+  invoices      Invoice[]
+}
+
+// Postpaid monthly invoice — one per customer per calendar-month cycle (UTC, matching Meta's billing).
+// Usage is the sum of message charges in the period; total = planFee + usageAmount.
+model Invoice {
+  id           Int           @id @default(autoincrement())
+  userId       Int
+  periodStart  DateTime      // UTC month start (inclusive)
+  periodEnd    DateTime      // UTC next-month start (exclusive)
+  status       InvoiceStatus @default(ISSUED)
+  planFee      Decimal       @db.Decimal(12, 2)
+  usageAmount  Decimal       @db.Decimal(12, 2) // Σ message charge (meta + fee) in the period
+  metaCost     Decimal       @db.Decimal(12, 2) // Σ Meta cost in the period — for margin
+  total        Decimal       @db.Decimal(12, 2) // planFee + usageAmount
+  messageCount Int           @default(0)
+  issuedAt     DateTime      @default(now())
+  dueDate      DateTime
+  paidAt       DateTime?
+  createdAt    DateTime      @default(now())
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, periodStart])
+  @@index([userId])
+  @@index([status])
+}
+
+model Contact {
+  id                  Int                  @id @default(autoincrement())
+  userId              Int
+  name                String
+  phone               String
+  tags                String[]
+  notes               String?
+  createdAt           DateTime             @default(now())
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages            Message[]
+  broadcastRecipients BroadcastRecipient[]
+
+  @@index([userId])
+  @@index([userId, phone])
+}
+
+model Message {
+  id          Int              @id @default(autoincrement())
+  userId      Int
+  contactId   Int
+  direction   MessageDirection
+  type        MessageType
+  body        String
+  status      MessageStatus
+  waMessageId String?          // WhatsApp message id (wamid) — matches status webhooks to this exact message
+  error       String?          // failure reason from Meta (e.g. billing/eligibility) when status = failed
+  // Cost tracking — populated asynchronously from the status webhook's pricing/conversation objects.
+  // Meta sends the category + billable flag (never a price); costAmount is a snapshot we compute from
+  // the user's rate card at webhook time so later rate edits don't rewrite historical spend.
+  category           String?       // marketing | utility | authentication | service (from pricing.category)
+  billable           Boolean?      // from pricing.billable
+  conversationId     String?       // from conversation.id
+  conversationOrigin String?       // from conversation.origin.type
+  costAmount         Decimal?      @db.Decimal(10, 4) // price charged to the customer (meta + platform fee), in INR
+  metaCost           Decimal?      @db.Decimal(10, 4) // Meta's portion of that cost — for the admin's margin reporting
+  broadcastId Int?             // set when this message was sent as part of a broadcast (for per-broadcast reports)
+  sentAt      DateTime?
+  createdAt   DateTime         @default(now())
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact     Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  broadcast   Broadcast?       @relation(fields: [broadcastId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([contactId])
+  @@index([userId, createdAt])
+  @@index([userId, direction])
+  @@index([userId, category])
+  @@index([waMessageId])
+  @@index([broadcastId])
+}
+
+model Template {
+  id              Int         @id @default(autoincrement())
+  userId          Int
+  name            String
+  category        String?
+  language        String      @default("en_US")
+  body            String
+  header          String?     // optional header text
+  footer          String?     // optional footer text
+  variables       String[]
+  examples        String[]    @default([]) // sample values for body variables (needed to submit to Meta)
+  status          String      @default("LOCAL") // LOCAL | PENDING | APPROVED | REJECTED | PAUSED | DISABLED
+  metaTemplateId  String?     // Meta's template id once submitted
+  rejectionReason String?     // why Meta rejected it
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  broadcasts      Broadcast[]
+}
+
+model Broadcast {
+  id            Int                  @id @default(autoincrement())
+  userId        Int
+  templateId    Int
+  status        BroadcastStatus      @default(draft)
+  templateParams String[]            @default([]) // ordered dynamic values for template placeholders
+  scheduledAt   DateTime?
+  createdAt   DateTime             @default(now())
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template    Template             @relation(fields: [templateId], references: [id])
+  recipients  BroadcastRecipient[]
+  messages    Message[]
+}
+
+model BroadcastRecipient {
+  id          Int       @id @default(autoincrement())
+  broadcastId Int
+  contactId   Int
+  status      String    @default("pending")
+  error       String?   // dispatch failure reason (when the message couldn't be handed to Meta at all)
+  sentAt      DateTime?
+  broadcast   Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+}
+
+model Setting {
+  id                Int     @id @default(autoincrement())
+  userId            Int     @unique
+  phoneNumberId     String
+  accessToken       String
+  businessAccountId String
+  profilePictureUrl String? // local/served path of the last uploaded profile photo (swap for CDN later)
+  monthlyBudget     Decimal? @db.Decimal(12, 2) // per-customer spend alert; null = no budget set
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([phoneNumberId])
+}
+
+// Single platform-wide rate card controlled by the admin (one row). Customers are charged these
+// per-message rates by category; they can read them but only the admin can edit. Stored directly in
+// the display currency (INR) — no live FX. Service messages are free.
+// Single platform-wide rate card (admin-controlled). Each category has a Meta cost (what Meta charges
+// the platform) and a platform fee (the admin's margin). Customers are charged meta + fee = the rate*
+// columns, which are kept as the authoritative "price charged" for fast lookups.
+model PlatformPricing {
+  id                 Int      @id @default(autoincrement())
+  // Customer price (meta + fee) — what gets deducted from the wallet.
+  rateMarketing      Decimal  @default(0) @db.Decimal(10, 4)
+  rateUtility        Decimal  @default(0) @db.Decimal(10, 4)
+  rateAuthentication Decimal  @default(0) @db.Decimal(10, 4)
+  rateService        Decimal  @default(0) @db.Decimal(10, 4)
+  // Meta's portion of each rate — used to compute the platform's margin.
+  metaMarketing      Decimal  @default(0) @db.Decimal(10, 4)
+  metaUtility        Decimal  @default(0) @db.Decimal(10, 4)
+  metaAuthentication Decimal  @default(0) @db.Decimal(10, 4)
+  // Master switch: when false, messages are not priced or charged (clients pay only the monthly fee
+  // and pay Meta directly). The rate card is preserved so usage billing can be turned back on anytime.
+  usageBillingEnabled Boolean @default(true)
+  // ADVANCE = bill the plan fee up front for the month it covers (prepaid); usage is added in arrears
+  // on the next invoice. ARREARS = postpaid (bill at month-end for the month just used).
+  billingMode        String   @default("ADVANCE")
+  currency           String   @default("INR")
+  updatedAt          DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum InvoiceStatus {
+  ISSUED
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageType {
+  text
+  template
+  image
+  document
+}
+
+enum MessageStatus {
+  sent
+  delivered
+  read
+  failed
+}
+
+enum BroadcastStatus {
+  draft
+  scheduled
+  sent
+  failed
+}

@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply font-sans bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200;
+  }
+
+  /* Consistent, modern focus ring for keyboard users */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-whatsapp-green/60 ring-offset-2 ring-offset-white dark:ring-offset-slate-950;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300/70 dark:bg-slate-700/70 rounded-full border-2 border-transparent bg-clip-padding;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400/80 dark:bg-slate-600/80;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm bg-whatsapp-green text-white font-semibold
+           shadow-sm hover:bg-whatsapp-teal hover:shadow-glow active:scale-[0.98]
+           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
+           bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200
+           border border-slate-200 dark:border-slate-700
+           hover:bg-slate-50 dark:hover:bg-slate-700/70 hover:border-slate-300 dark:hover:border-slate-600
+           active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm bg-red-500 text-white font-semibold
+           shadow-sm hover:bg-red-600 active:scale-[0.98] transition-all duration-150 disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium
+           text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-150;
+  }
+  .input {
+    @apply w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700
+           bg-white dark:bg-slate-800/80 text-sm text-slate-900 dark:text-slate-100
+           shadow-sm focus:outline-none focus:ring-2 focus:ring-whatsapp-green/50 focus:border-whatsapp-green
+           placeholder-slate-400 dark:placeholder-slate-500 transition-all duration-150;
+  }
+  .card {
+    @apply bg-white dark:bg-slate-900 rounded-2xl shadow-card border border-slate-200/80 dark:border-slate-800;
+  }
+  /* Opt-in hover lift for clickable cards */
+  .card-interactive {
+    @apply transition-all duration-200 hover:shadow-lift hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-slate-700;
+  }
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+}

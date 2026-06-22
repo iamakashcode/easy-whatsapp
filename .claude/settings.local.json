@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:3001/health)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(curl -s -X POST http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"desirediv03@gmail.com\",\"password\":\"test123\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -X POST http://localhost:3001/api/auth/register -H 'Content-Type: application/json' -d '{\"username\":\"akash\",\"email\":\"desirediv03@gmail.com\",\"password\":\"akash123\"}')",
+      "Bash(curl -s -X POST http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"desirediv03@gmail.com\",\"password\":\"akash123\"}')",
+      "Bash(lsof -ti:3001)",
+      "Bash(lsof -ti:5173)",
+      "Bash(cat \"/Users/akashsachan/Library/Application Support/ngrok/ngrok.yml\" | sed 's/\\\\\\(authtoken: \\\\\\).*/\\\\1<redacted>/')",
+      "Read(//Users/akashsachan/Library/Application Support/ngrok/**)",
+      "Bash(ngrok config *)",
+      "Bash(pkill -f ngrok)",
+      "Bash(ngrok http *)",
+      "Bash(echo \"ngrok PID: $!\")",
+      "Bash(npx prisma *)",
+      "Bash(node -c controllers/messagesController.js)"
+    ]
+  }
+}
