@@ -9,7 +9,7 @@ module.exports = {
       watch: false,
       max_memory_restart: '500M',
       env: {
-        NODE_ENV: 'development',
+        NODE_ENV: 'production',
         PORT: 4005,
       },
       env_production: {
@@ -29,7 +29,7 @@ module.exports = {
       autorestart: true,
       watch: false,
       env: {
-        NODE_ENV: 'development',
+        NODE_ENV: 'production',
         PORT: 4176,
       },
       env_production: {
