@@ -28,8 +28,20 @@ app.use(compression());
 app.use('/api/webhook', require('./routes/webhook'));
 
 // CORS — in production the server serves the frontend itself, so allow same origin
-const corsOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
-app.use(cors({ origin: corsOrigin, credentials: true }));
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:4176')
+  .split(',')
+  .map(url => url.trim());
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
+  credentials: true
+}));
 
 app.use(express.json());
 

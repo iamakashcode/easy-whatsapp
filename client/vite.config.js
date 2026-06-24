@@ -4,15 +4,15 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    port: 4176,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:4005',
         changeOrigin: true,
       },
       // Locally-stored uploads (e.g. profile photos) served by the API in dev
       '/uploads': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:4005',
         changeOrigin: true,
       },
     },
