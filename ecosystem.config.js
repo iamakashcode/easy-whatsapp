@@ -22,8 +22,8 @@ module.exports = {
     },
     {
       name: 'easy-whatsapp-client',
-      script: 'npm',
-      args: 'run dev',
+      script: './node_modules/vite/bin/vite.js',
+      args: '',
       cwd: './client',
       instances: 1,
       autorestart: true,
